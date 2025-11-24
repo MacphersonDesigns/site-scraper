@@ -1,0 +1,137 @@
+/**
+ * Configuration options for the site scraper
+ */
+export interface ScraperConfig {
+  /** Base URL to start crawling from */
+  baseUrl: string;
+  /** Maximum number of pages to crawl (0 for unlimited) */
+  maxPages?: number;
+  /** Directory to save screenshots */
+  screenshotDir?: string;
+  /** Directory to save output reports */
+  outputDir?: string;
+  /** Request delay in milliseconds between pages */
+  delay?: number;
+  /** Screenshot quality (0-100) for JPEG format */
+  screenshotQuality?: number;
+  /** Whether to capture full page screenshots */
+  fullPageScreenshots?: boolean;
+  /** Viewport width for screenshots */
+  viewportWidth?: number;
+  /** Viewport height for screenshots */
+  viewportHeight?: number;
+}
+
+/**
+ * Extracted link information
+ */
+export interface LinkInfo {
+  /** Link text content */
+  text: string;
+  /** Link href attribute */
+  href: string;
+  /** Whether link is internal or external */
+  isInternal: boolean;
+}
+
+/**
+ * Extracted image information
+ */
+export interface ImageInfo {
+  /** Image src attribute */
+  src: string;
+  /** Image alt text */
+  alt: string;
+  /** Image width (if available) */
+  width?: number;
+  /** Image height (if available) */
+  height?: number;
+}
+
+/**
+ * Structural element information
+ */
+export interface StructuralElement {
+  /** HTML tag name */
+  tag: string;
+  /** Element ID (if present) */
+  id?: string;
+  /** Element classes */
+  classes: string[];
+  /** Element text content */
+  text?: string;
+  /** Number of children */
+  childCount: number;
+}
+
+/**
+ * Detected technology/library information
+ */
+export interface TechnologyInfo {
+  /** Technology name */
+  name: string;
+  /** Version (if detected) */
+  version?: string;
+  /** Category (framework, library, analytics, etc.) */
+  category: string;
+  /** Detection confidence (high, medium, low) */
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Page data extracted from a single page
+ */
+export interface PageData {
+  /** Page URL */
+  url: string;
+  /** Page title */
+  title: string;
+  /** Meta description */
+  metaDescription?: string;
+  /** All extracted text content */
+  textContent: string;
+  /** Extracted headings */
+  headings: { level: number; text: string }[];
+  /** Extracted links */
+  links: LinkInfo[];
+  /** Extracted images */
+  images: ImageInfo[];
+  /** Structural elements */
+  structure: StructuralElement[];
+  /** Screenshot file path */
+  screenshotPath?: string;
+  /** Detected technologies (page-specific scripts) */
+  technologies: TechnologyInfo[];
+  /** HTTP status code */
+  statusCode: number;
+  /** Page load time in milliseconds */
+  loadTime: number;
+  /** Timestamp of when page was scraped */
+  scrapedAt: string;
+}
+
+/**
+ * Complete site report
+ */
+export interface SiteReport {
+  /** Base URL that was scraped */
+  baseUrl: string;
+  /** Total pages scraped */
+  totalPages: number;
+  /** All page data */
+  pages: PageData[];
+  /** Site-wide detected technologies */
+  technologies: TechnologyInfo[];
+  /** Site structure (page hierarchy) */
+  siteStructure: {
+    url: string;
+    title: string;
+    children: string[];
+  }[];
+  /** Scrape start time */
+  startTime: string;
+  /** Scrape end time */
+  endTime: string;
+  /** Total duration in seconds */
+  duration: number;
+}
