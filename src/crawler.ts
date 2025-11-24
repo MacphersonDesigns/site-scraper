@@ -277,7 +277,7 @@ export class SiteCrawler {
         width: this.config.viewportWidth,
         height: this.config.viewportHeight,
       },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 SiteScraperBot/1.0',
+      userAgent: 'Mozilla/5.0 (compatible; SiteScraperBot/1.0; +https://github.com/MacphersonDesigns/site-scraper)',
     });
 
     const page = await context.newPage();

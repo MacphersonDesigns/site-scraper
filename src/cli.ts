@@ -12,29 +12,48 @@ function parseArgs(args: string[]): ScraperConfig {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
+/**
+ * Get the next argument value, with bounds checking
+ */
+function getNextArg(args: string[], index: number, flag: string): string {
+  if (index + 1 >= args.length) {
+    console.error(`Error: ${flag} requires a value`);
+    process.exit(1);
+  }
+  return args[index + 1];
+}
+
     if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
     }
 
     if (arg === '--url' || arg === '-u') {
-      config.baseUrl = args[++i];
+      config.baseUrl = getNextArg(args, i, arg);
+      i++;
     } else if (arg === '--max-pages' || arg === '-m') {
-      config.maxPages = parseInt(args[++i], 10);
+      config.maxPages = parseInt(getNextArg(args, i, arg), 10);
+      i++;
     } else if (arg === '--screenshots' || arg === '-s') {
-      config.screenshotDir = args[++i];
+      config.screenshotDir = getNextArg(args, i, arg);
+      i++;
     } else if (arg === '--output' || arg === '-o') {
-      config.outputDir = args[++i];
+      config.outputDir = getNextArg(args, i, arg);
+      i++;
     } else if (arg === '--delay' || arg === '-d') {
-      config.delay = parseInt(args[++i], 10);
+      config.delay = parseInt(getNextArg(args, i, arg), 10);
+      i++;
     } else if (arg === '--quality' || arg === '-q') {
-      config.screenshotQuality = parseInt(args[++i], 10);
+      config.screenshotQuality = parseInt(getNextArg(args, i, arg), 10);
+      i++;
     } else if (arg === '--no-full-page') {
       config.fullPageScreenshots = false;
     } else if (arg === '--width' || arg === '-w') {
-      config.viewportWidth = parseInt(args[++i], 10);
+      config.viewportWidth = parseInt(getNextArg(args, i, arg), 10);
+      i++;
     } else if (arg === '--height') {
-      config.viewportHeight = parseInt(args[++i], 10);
+      config.viewportHeight = parseInt(getNextArg(args, i, arg), 10);
+      i++;
     } else if (!arg.startsWith('-') && !config.baseUrl) {
       // Treat non-flag arguments as URL
       config.baseUrl = arg;
