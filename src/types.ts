@@ -20,6 +20,22 @@ export interface ScraperConfig {
   viewportWidth?: number;
   /** Viewport height for screenshots */
   viewportHeight?: number;
+  /** Disable CSS/JS animations before screenshots (default: true) */
+  disableAnimations?: boolean;
+  /** Download all page assets (images, CSS, JS) */
+  downloadAssets?: boolean;
+  /** Download only images (default: true when downloadAssets is true) */
+  downloadImages?: boolean;
+  /** Download CSS files */
+  downloadCSS?: boolean;
+  /** Download JS files */
+  downloadJS?: boolean;
+  /** Timeout for asset downloads in milliseconds (default: 5000) */
+  assetTimeout?: number;
+  /** Maximum asset size in bytes (default: 10MB) */
+  maxAssetSize?: number;
+  /** Show verbose logging output */
+  verbose?: boolean;
 }
 
 /**
@@ -163,6 +179,20 @@ export interface ProjectConfig {
   viewportHeight?: number;
   /** Scheduling cron expression (optional) */
   schedule?: string;
+  /** Disable CSS/JS animations before screenshots (default: true) */
+  disableAnimations?: boolean;
+  /** Download all page assets (images, CSS, JS) */
+  downloadAssets?: boolean;
+  /** Download only images (default: true when downloadAssets is true) */
+  downloadImages?: boolean;
+  /** Download CSS files */
+  downloadCSS?: boolean;
+  /** Download JS files */
+  downloadJS?: boolean;
+  /** Timeout for asset downloads in milliseconds (default: 5000) */
+  assetTimeout?: number;
+  /** Maximum asset size in bytes (default: 10MB) */
+  maxAssetSize?: number;
   /** Date when project was created */
   createdAt: string;
   /** Date when project was last updated */
@@ -241,4 +271,33 @@ export interface CloneResult {
   duration: number;
   /** Any errors encountered during cloning */
   errors: string[];
+ * Result of an asset download attempt
+ */
+export interface AssetDownloadResult {
+  /** Original URL of the asset */
+  url: string;
+  /** Local file path where asset was saved */
+  localPath?: string;
+  /** Whether the download was successful */
+  success: boolean;
+  /** Error message if download failed */
+  error?: string;
+  /** Size of downloaded file in bytes */
+  size?: number;
+}
+
+/**
+ * Detailed progress information
+ */
+export interface ProgressDetails {
+  /** Current status of the operation */
+  status: 'scraping' | 'downloading_assets' | 'completed' | 'failed';
+  /** Current URL being processed */
+  url?: string;
+  /** Current action being performed */
+  action?: string;
+  /** Details about the current action */
+  details?: string;
+  /** Timestamp of this progress update */
+  timestamp: string;
 }

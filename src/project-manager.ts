@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { chromium, type Browser, type Page } from 'playwright';
-import type { Project, ProjectConfig, SiteReport, PageData, TechnologyInfo } from './types';
+import type { Project, ProjectConfig, SiteReport, PageData, TechnologyInfo, ProgressDetails } from './types';
 import { extractPageData } from './extractor';
+import { disablePageAnimations, downloadAssets, formatBytes } from './utils';
 
 const SCRAPED_DATA_DIR = './scraped-data';
 const PROJECTS_FILE = './scraped-data/projects.json';
@@ -13,9 +14,9 @@ const PROJECTS_FILE = './scraped-data/projects.json';
 let projectsStore: Map<string, Project> = new Map();
 
 /**
- * Callback type for progress updates
+ * Callback type for progress updates with detailed info
  */
-export type ProgressCallback = (projectId: string, progress: number, status: string) => void;
+export type ProgressCallback = (projectId: string, progress: number, status: string, details?: ProgressDetails) => void;
 
 /**
  * Progress callback (set by server for WebSocket updates)
@@ -121,6 +122,13 @@ export function createProject(config: Omit<ProjectConfig, 'id' | 'createdAt' | '
     viewportWidth: config.viewportWidth ?? 1920,
     viewportHeight: config.viewportHeight ?? 1080,
     schedule: config.schedule,
+    disableAnimations: config.disableAnimations ?? true,
+    downloadAssets: config.downloadAssets ?? false,
+    downloadImages: config.downloadImages ?? true,
+    downloadCSS: config.downloadCSS ?? false,
+    downloadJS: config.downloadJS ?? false,
+    assetTimeout: config.assetTimeout ?? 5000,
+    maxAssetSize: config.maxAssetSize ?? 10 * 1024 * 1024,
     createdAt: now,
     updatedAt: now,
     status: 'idle',
@@ -252,6 +260,13 @@ export async function runProject(id: string): Promise<SiteReport | undefined> {
           });
           const statusCode = response?.status() || 200;
           await page.waitForTimeout(500);
+
+          // Disable animations before taking screenshot
+          if (project.disableAnimations !== false) {
+            await disablePageAnimations(page);
+            await page.waitForTimeout(100);
+          }
+
           const loadTime = Date.now() - startTime;
 
           // Create page folder
@@ -269,6 +284,17 @@ export async function runProject(id: string): Promise<SiteReport | undefined> {
             type: 'png',
           });
 
+          // Update progress with detailed status
+          if (progressCallback) {
+            progressCallback(id, project.progress, `Screenshot: ${url}`, {
+              status: 'scraping',
+              url,
+              action: 'screenshot',
+              details: 'Screenshot captured',
+              timestamp: new Date().toISOString(),
+            });
+          }
+
           // Extract page data
           const pageData = await extractPageData(
             page,
@@ -278,6 +304,18 @@ export async function runProject(id: string): Promise<SiteReport | undefined> {
             statusCode,
             loadTime
           );
+
+          // Download assets if enabled
+          if (project.downloadAssets && project.downloadImages !== false) {
+            await downloadPageAssets(
+              pageData,
+              url,
+              pageDir,
+              project,
+              id,
+              progressCallback
+            );
+          }
 
           // Save page data
           const dataPath = path.join(pageDir, 'data.json');
@@ -305,7 +343,13 @@ export async function runProject(id: string): Promise<SiteReport | undefined> {
           saveProjects();
 
           if (progressCallback) {
-            progressCallback(id, project.progress, `Scraped: ${url}`);
+            progressCallback(id, project.progress, `Scraped: ${url}`, {
+              status: 'scraping',
+              url,
+              action: 'page_complete',
+              details: `Page ${pageCount} of ${maxPages}`,
+              timestamp: new Date().toISOString(),
+            });
           }
 
           // Delay between requests
@@ -498,6 +542,67 @@ function generateSummary(report: SiteReport, projectName: string): string {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Download assets for a page in project mode
+ */
+async function downloadPageAssets(
+  pageData: PageData,
+  url: string,
+  pageDir: string,
+  project: Project,
+  projectId: string,
+  callback: ProgressCallback | null
+): Promise<void> {
+  const imageUrls = pageData.images
+    .map(img => img.src)
+    .filter(src => src && !src.startsWith('data:'));
+
+  if (imageUrls.length === 0) return;
+
+  // Create images directory
+  const imagesDir = path.join(pageDir, 'images');
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+  }
+
+  if (callback) {
+    callback(projectId, project.progress, `Downloading images: ${imageUrls.length} found`, {
+      status: 'downloading_assets',
+      url,
+      action: 'downloading_assets',
+      details: `Downloading ${imageUrls.length} images`,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  const results = await downloadAssets(imageUrls, imagesDir, {
+    timeout: project.assetTimeout ?? 5000,
+    maxSize: project.maxAssetSize ?? 10 * 1024 * 1024,
+    baseUrl: url,
+    onProgress: (completed, total, result) => {
+      if (callback && result.localPath) {
+        const filename = path.basename(result.localPath);
+        callback(projectId, project.progress, 
+          result.success 
+            ? `Downloaded: ${filename} (${formatBytes(result.size || 0)})`
+            : `Failed: ${filename}`,
+          {
+            status: 'downloading_assets',
+            url,
+            action: 'downloading_assets',
+            details: `Image ${completed}/${total}: ${filename}`,
+            timestamp: new Date().toISOString(),
+          }
+        );
+      }
+    },
+  });
+
+  const successful = results.filter(r => r.success).length;
+  const failed = results.filter(r => !r.success).length;
+  console.log(`  Assets downloaded: ${successful} success, ${failed} failed`);
 }
 
 // Initialize projects on module load
