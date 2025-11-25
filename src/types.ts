@@ -184,3 +184,61 @@ export interface Project extends ProjectConfig {
   /** Report from last completed run */
   lastReport?: SiteReport;
 }
+
+/**
+ * Configuration options for the site cloner
+ */
+export interface ClonerConfig {
+  /** URL of the website to clone */
+  url: string;
+  /** Output directory for cloned files (default: ./cloned-sites/<hostname>) */
+  outputDir?: string;
+  /** Whether to download images (default: true) */
+  downloadImages?: boolean;
+  /** Whether to download CSS files (default: true) */
+  downloadCss?: boolean;
+  /** Whether to download JavaScript files (default: true) */
+  downloadJs?: boolean;
+  /** Timeout for page load in milliseconds (default: 30000) */
+  timeout?: number;
+}
+
+/**
+ * Information about a downloaded asset
+ */
+export interface ClonedAsset {
+  /** Original URL of the asset */
+  originalUrl: string;
+  /** Local file path where asset was saved */
+  localPath: string;
+  /** Type of asset (html, css, js, image) */
+  type: 'html' | 'css' | 'js' | 'image';
+  /** Size in bytes */
+  size: number;
+}
+
+/**
+ * Result of a site cloning operation
+ */
+export interface CloneResult {
+  /** URL that was cloned */
+  url: string;
+  /** Output directory where files were saved */
+  outputDir: string;
+  /** HTML file path */
+  htmlPath: string;
+  /** List of all downloaded assets */
+  assets: ClonedAsset[];
+  /** Total number of assets downloaded */
+  totalAssets: number;
+  /** Total size in bytes */
+  totalSize: number;
+  /** Cloning start time */
+  startTime: string;
+  /** Cloning end time */
+  endTime: string;
+  /** Duration in seconds */
+  duration: number;
+  /** Any errors encountered during cloning */
+  errors: string[];
+}
