@@ -1,4 +1,4 @@
-// API base URL - in production, this would be relative
+// API base URL (relative path for same-origin requests)
 const API_BASE = '/api';
 
 // Store for projects

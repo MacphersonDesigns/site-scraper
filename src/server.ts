@@ -284,12 +284,14 @@ export function startServer(port = DEFAULT_PORT): http.Server {
   });
 
   server.listen(port, () => {
+    const serverUrl = `http://localhost:${port}`;
+    const apiUrl = `http://localhost:${port}/api`;
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                  SITE SCRAPER WEB UI                      ║
 ╠═══════════════════════════════════════════════════════════╣
-║  Server running at: http://localhost:${String(port).padEnd(20)}  ║
-║  API endpoint: http://localhost:${String(port).padEnd(5)}/api               ║
+║  Server running at: ${serverUrl.padEnd(37)}║
+║  API endpoint: ${apiUrl.padEnd(42)}║
 ╚═══════════════════════════════════════════════════════════╝
 `);
   });

@@ -322,15 +322,16 @@ export async function runProject(id: string): Promise<SiteReport | undefined> {
 
     // Create final report
     const endTime = new Date();
+    const startTime = project.lastRun ? new Date(project.lastRun) : endTime;
     const report: SiteReport = {
       baseUrl: project.urls[0],
       totalPages: allPages.length,
       pages: allPages,
       technologies: aggregateTechnologies(allPages),
       siteStructure: buildSiteStructure(allPages),
-      startTime: project.lastRun || new Date().toISOString(),
+      startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
-      duration: 0,
+      duration: (endTime.getTime() - startTime.getTime()) / 1000,
     };
 
     // Save report
