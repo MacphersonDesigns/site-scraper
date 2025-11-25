@@ -3,6 +3,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ScraperConfig, PageData, SiteReport, TechnologyInfo } from './types';
 import { extractPageData } from './extractor';
+import {
+  disablePageAnimations,
+  downloadAssets,
+  formatBytes,
+  logCrawling,
+  logScreenshot,
+  logAssetDownload,
+  logDownloaded,
+  logDownloadFailed,
+  logTechnologies,
+  logPageComplete,
+} from './utils';
 
 /**
  * Default configuration values
@@ -16,6 +28,14 @@ const DEFAULT_CONFIG: Required<Omit<ScraperConfig, 'baseUrl'>> = {
   fullPageScreenshots: true,
   viewportWidth: 1920,
   viewportHeight: 1080,
+  disableAnimations: true,
+  downloadAssets: false,
+  downloadImages: true,
+  downloadCSS: false,
+  downloadJS: false,
+  assetTimeout: 5000,
+  maxAssetSize: 10 * 1024 * 1024,
+  verbose: false,
 };
 
 /**
@@ -156,8 +176,9 @@ export class SiteCrawler {
     }
 
     this.visitedUrls.add(normalizedUrl);
+    const pageStartTime = Date.now();
 
-    console.log(`Crawling: ${url} (${this.visitedUrls.size}/${this.config.maxPages})`);
+    logCrawling(url, this.visitedUrls.size, this.config.maxPages, this.config.verbose);
 
     const startTime = Date.now();
     let statusCode = 200;
@@ -173,10 +194,20 @@ export class SiteCrawler {
       // Wait for any dynamic content
       await page.waitForTimeout(500);
 
+      // Disable animations before taking screenshot
+      if (this.config.disableAnimations) {
+        await disablePageAnimations(page);
+        // Small wait for animations to settle after disabling
+        await page.waitForTimeout(100);
+      }
+
       const loadTime = Date.now() - startTime;
 
       // Take screenshot
       const screenshotPath = await this.takeScreenshot(page, url);
+      if (screenshotPath) {
+        logScreenshot(this.config.verbose);
+      }
 
       // Extract page data
       const pageData = await extractPageData(
@@ -188,6 +219,19 @@ export class SiteCrawler {
         loadTime
       );
 
+      // Log detected technologies
+      if (pageData.technologies.length > 0) {
+        logTechnologies(
+          pageData.technologies.map(t => t.name),
+          this.config.verbose
+        );
+      }
+
+      // Download assets if enabled
+      if (this.config.downloadAssets && this.config.downloadImages && pageData.images.length > 0) {
+        await this.downloadPageAssets(pageData, url);
+      }
+
       // Queue internal links for crawling
       const internalLinks = pageData.links
         .filter(link => link.isInternal && this.shouldCrawl(link.href))
@@ -198,6 +242,9 @@ export class SiteCrawler {
           this.urlsToVisit.push(link);
         }
       }
+
+      const pageDuration = (Date.now() - pageStartTime) / 1000;
+      logPageComplete(pageDuration, this.config.verbose);
 
       return pageData;
     } catch (error) {
@@ -215,6 +262,46 @@ export class SiteCrawler {
         loadTime: Date.now() - startTime,
         scrapedAt: new Date().toISOString(),
       };
+    }
+  }
+
+  /**
+   * Download assets for a page
+   */
+  private async downloadPageAssets(pageData: PageData, url: string): Promise<void> {
+    const imageUrls = pageData.images
+      .map(img => img.src)
+      .filter(src => src && !src.startsWith('data:'));
+
+    if (imageUrls.length === 0) return;
+
+    logAssetDownload('images', imageUrls.length, this.config.verbose);
+
+    // Create images directory in screenshot folder
+    const imagesDir = path.join(this.config.screenshotDir, 'images');
+    if (!fs.existsSync(imagesDir)) {
+      fs.mkdirSync(imagesDir, { recursive: true });
+    }
+
+    const results = await downloadAssets(imageUrls, imagesDir, {
+      timeout: this.config.assetTimeout,
+      maxSize: this.config.maxAssetSize,
+      baseUrl: url,
+      onProgress: (completed, total, result) => {
+        if (result.success && result.localPath) {
+          const filename = path.basename(result.localPath);
+          logDownloaded(filename, formatBytes(result.size || 0), this.config.verbose);
+        } else if (!result.success && result.error) {
+          const filename = result.url.split('/').pop() || 'unknown';
+          logDownloadFailed(filename, result.error, this.config.verbose);
+        }
+      },
+    });
+
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    if (this.config.verbose && (successful > 0 || failed > 0)) {
+      console.log(`  Downloaded: ${successful} | Failed: ${failed}`);
     }
   }
 
