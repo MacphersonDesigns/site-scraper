@@ -21,6 +21,7 @@ export function sanitizeFilename(filename: string): string {
   // Get the base name from URL path
   let sanitized = filename
     .split('/')
+    .filter(part => part.length > 0)
     .pop() || 'unnamed';
 
   // Remove query string and hash
@@ -28,6 +29,9 @@ export function sanitizeFilename(filename: string): string {
 
   // Replace invalid characters
   sanitized = sanitized.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_');
+
+  // Remove leading/trailing dots and spaces
+  sanitized = sanitized.replace(/^[\s.]+|[\s.]+$/g, '');
 
   // Limit length
   if (sanitized.length > 200) {
@@ -129,18 +133,28 @@ function downloadFile(
   url: string,
   destPath: string,
   timeout: number,
-  maxSize: number
+  maxSize: number,
+  redirectCount = 0
 ): Promise<number> {
+  const MAX_REDIRECTS = 5;
+
   return new Promise((resolve, reject) => {
+    if (redirectCount >= MAX_REDIRECTS) {
+      reject(new Error(`Too many redirects (max: ${MAX_REDIRECTS})`));
+      return;
+    }
+
     const parsedUrl = new URL(url);
     const httpModule = parsedUrl.protocol === 'https:' ? https : http;
 
-    const request = httpModule.get(url, { timeout }, (response) => {
+    const request = httpModule.get(url, (response) => {
       // Handle redirects
-      if (response.statusCode === 301 || response.statusCode === 302) {
+      if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 307 || response.statusCode === 308) {
         const redirectUrl = response.headers.location;
         if (redirectUrl) {
-          downloadFile(redirectUrl, destPath, timeout, maxSize)
+          // Consume response body to free socket
+          response.resume();
+          downloadFile(redirectUrl, destPath, timeout, maxSize, redirectCount + 1)
             .then(resolve)
             .catch(reject);
           return;
@@ -149,6 +163,7 @@ function downloadFile(
 
       // Check for successful response
       if (response.statusCode !== 200) {
+        response.resume();
         reject(new Error(`HTTP ${response.statusCode}`));
         return;
       }
@@ -156,6 +171,7 @@ function downloadFile(
       // Check content length if available
       const contentLength = parseInt(response.headers['content-length'] || '0', 10);
       if (contentLength > maxSize) {
+        response.resume();
         reject(new Error(`File too large: ${contentLength} bytes (max: ${maxSize})`));
         return;
       }
@@ -166,6 +182,7 @@ function downloadFile(
       response.on('data', (chunk: Buffer) => {
         downloadedSize += chunk.length;
         if (downloadedSize > maxSize) {
+          response.destroy();
           request.destroy();
           reject(new Error(`File too large: exceeded ${maxSize} bytes`));
           return;
@@ -186,7 +203,8 @@ function downloadFile(
       response.on('error', reject);
     });
 
-    request.on('timeout', () => {
+    // Set timeout on the request
+    request.setTimeout(timeout, () => {
       request.destroy();
       reject(new Error(`Download timed out after ${timeout}ms`));
     });

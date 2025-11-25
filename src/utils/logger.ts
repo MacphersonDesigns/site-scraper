@@ -1,5 +1,9 @@
 /**
  * Logger utility for enhanced terminal output
+ * 
+ * All log functions accept a `verbose` parameter that controls whether
+ * to output the message. When false, the message is silently discarded.
+ * Callers should pass the config's verbose setting to control logging.
  */
 
 /**
@@ -11,9 +15,9 @@ function getTimestamp(): string {
 }
 
 /**
- * Log a message with timestamp
+ * Log a message with timestamp (only if verbose is true)
  */
-export function log(message: string, verbose = true): void {
+export function log(message: string, verbose: boolean): void {
   if (verbose) {
     console.log(`[${getTimestamp()}] ${message}`);
   }
@@ -22,21 +26,21 @@ export function log(message: string, verbose = true): void {
 /**
  * Log info message
  */
-export function logInfo(message: string, verbose = true): void {
+export function logInfo(message: string, verbose: boolean): void {
   log(`ℹ️  ${message}`, verbose);
 }
 
 /**
  * Log success message
  */
-export function logSuccess(message: string, verbose = true): void {
+export function logSuccess(message: string, verbose: boolean): void {
   log(`✅ ${message}`, verbose);
 }
 
 /**
  * Log warning message
  */
-export function logWarning(message: string, verbose = true): void {
+export function logWarning(message: string, verbose: boolean): void {
   log(`⚠️  ${message}`, verbose);
 }
 
@@ -50,42 +54,42 @@ export function logError(message: string): void {
 /**
  * Log crawling status
  */
-export function logCrawling(url: string, current: number, total: number, verbose = true): void {
+export function logCrawling(url: string, current: number, total: number, verbose: boolean): void {
   log(`🌐 Crawling: ${url} (${current}/${total})`, verbose);
 }
 
 /**
  * Log screenshot captured
  */
-export function logScreenshot(verbose = true): void {
+export function logScreenshot(verbose: boolean): void {
   log(`📸 Screenshot captured`, verbose);
 }
 
 /**
  * Log asset download
  */
-export function logAssetDownload(type: string, count: number, verbose = true): void {
+export function logAssetDownload(type: string, count: number, verbose: boolean): void {
   log(`🖼️  Downloading ${type}: ${count} found`, verbose);
 }
 
 /**
  * Log downloaded asset
  */
-export function logDownloaded(filename: string, size: string, verbose = true): void {
+export function logDownloaded(filename: string, size: string, verbose: boolean): void {
   log(`  ✓ Downloaded: ${filename} (${size})`, verbose);
 }
 
 /**
  * Log failed download
  */
-export function logDownloadFailed(filename: string, error: string, verbose = true): void {
+export function logDownloadFailed(filename: string, error: string, verbose: boolean): void {
   log(`  ⚠️  Failed: ${filename} (${error})`, verbose);
 }
 
 /**
  * Log detected technologies
  */
-export function logTechnologies(techs: string[], verbose = true): void {
+export function logTechnologies(techs: string[], verbose: boolean): void {
   if (techs.length > 0) {
     log(`📊 Technologies: ${techs.join(', ')}`, verbose);
   }
@@ -94,6 +98,6 @@ export function logTechnologies(techs: string[], verbose = true): void {
 /**
  * Log page completion
  */
-export function logPageComplete(durationSeconds: number, verbose = true): void {
+export function logPageComplete(durationSeconds: number, verbose: boolean): void {
   log(`✅ Page complete (${durationSeconds.toFixed(1)}s)`, verbose);
 }
