@@ -6,6 +6,8 @@ A comprehensive website crawling and documentation tool that captures high-accur
 
 - **Full Website Crawling** - Automatically discovers and crawls all internal pages starting from a base URL
 - **High-Accuracy Screenshots** - Captures full-page PNG screenshots at 1920x1080 resolution by default
+- **Animation Disabling** - Automatically disables CSS/JS animations before screenshots for consistent captures
+- **Asset Downloading** - Download all images (and optionally CSS/JS) from scraped pages
 - **Content Extraction** - Extracts:
   - All text content
   - Headings (H1-H6)
@@ -26,10 +28,12 @@ A comprehensive website crawling and documentation tool that captures high-accur
   - Configuring URLs, scheduling, and options
   - Monitoring scraping progress in real-time
   - Viewing results and screenshots
+- **Enhanced Logging** - Verbose output with timestamps, emojis, and detailed progress
 - **Organized Output** - Generates:
   - JSON report with complete structured data
   - Human-readable text summary
   - Organized screenshots directory
+  - Downloaded assets organized by page
   - Project-based folder structure
 
 ## Installation
@@ -68,6 +72,7 @@ Then open http://localhost:3000 in your browser.
 The Web UI allows you to:
 - Create and manage multiple scraping projects
 - Configure project settings (URLs, max pages, delay, viewport size)
+- Enable/disable animations and asset downloading
 - Run scraping jobs with real-time progress updates
 - View detailed results including detected technologies
 - Access screenshots and extracted data
@@ -81,7 +86,11 @@ scraped-data/
     ├── summary.txt            # Human-readable summary
     └── <page-name>/
         ├── screenshot.png     # Full-page screenshot
-        └── data.json          # Page data and content
+        ├── data.json          # Page data and content
+        └── images/            # Downloaded images (when enabled)
+            ├── logo.png
+            ├── hero.jpg
+            └── ...
 ```
 
 ### Command Line
@@ -90,8 +99,8 @@ scraped-data/
 # Basic usage
 node dist/cli.js https://example.com
 
-# With options
-node dist/cli.js https://example.com --max-pages 100 --output ./docs
+# With verbose output and image downloading
+node dist/cli.js https://example.com --download-images --verbose
 
 # All options
 node dist/cli.js <url> [options]
@@ -112,6 +121,11 @@ node dist/cli.js <url> [options]
 | `--no-full-page` | | Capture viewport only | false |
 | `--width` | `-w` | Viewport width (px) | 1920 |
 | `--height` | | Viewport height (px) | 1080 |
+| `--disable-animations` | | Disable CSS/JS animations (default) | true |
+| `--no-disable-animations` | | Keep animations enabled | |
+| `--download-assets` | | Download all page assets | false |
+| `--download-images` | | Download only images | false |
+| `--verbose` | `-v` | Show detailed logging output | false |
 
 ### Programmatic Usage
 
@@ -127,7 +141,7 @@ const report = await crawlSite({
 console.log(`Scraped ${report.totalPages} pages`);
 console.log('Technologies:', report.technologies);
 
-// Advanced usage
+// Advanced usage with new features
 const crawler = new SiteCrawler({
   baseUrl: 'https://example.com',
   maxPages: 100,
@@ -137,6 +151,10 @@ const crawler = new SiteCrawler({
   fullPageScreenshots: true,
   viewportWidth: 1920,
   viewportHeight: 1080,
+  disableAnimations: true,    // Disable animations before screenshots
+  downloadAssets: true,       // Enable asset downloading
+  downloadImages: true,       // Download images
+  verbose: true,              // Show detailed logging
 });
 
 const report = await crawler.crawl();
@@ -148,6 +166,8 @@ const project = createProject({
   name: 'My Website',
   urls: ['https://example.com'],
   maxPages: 50,
+  disableAnimations: true,
+  downloadAssets: true,
 });
 
 await runProject(project.id);

@@ -62,6 +62,17 @@ function parseArgs(args: string[]): { config: ScraperConfig | null; launchUi: bo
     } else if (arg === '--height') {
       config.viewportHeight = parseInt(getNextArg(args, i, arg), 10);
       i++;
+    } else if (arg === '--disable-animations') {
+      config.disableAnimations = true;
+    } else if (arg === '--no-disable-animations') {
+      config.disableAnimations = false;
+    } else if (arg === '--download-assets') {
+      config.downloadAssets = true;
+    } else if (arg === '--download-images') {
+      config.downloadAssets = true;
+      config.downloadImages = true;
+    } else if (arg === '--verbose' || arg === '-v') {
+      config.verbose = true;
     } else if (!arg.startsWith('-') && !config.baseUrl) {
       // Treat non-flag arguments as URL
       config.baseUrl = arg;
@@ -119,11 +130,17 @@ Options:
   --no-full-page         Capture viewport only, not full page
   -w, --width <n>        Viewport width in pixels (default: 1920)
   --height <n>           Viewport height in pixels (default: 1080)
+  --disable-animations   Disable CSS/JS animations before screenshots (default: enabled)
+  --no-disable-animations Keep animations enabled for screenshots
+  --download-assets      Download all page assets (images, CSS, JS)
+  --download-images      Download only images
+  -v, --verbose          Show detailed logging output
 
 Examples:
   site-scraper https://example.com
   site-scraper https://example.com --max-pages 100 --output ./docs
   site-scraper -u https://example.com -m 20 -d 500
+  site-scraper https://example.com --download-images --verbose
   site-scraper --ui                          # Launch web UI on port 3000
   site-scraper --ui --port 8080              # Launch web UI on port 8080
 
@@ -140,11 +157,13 @@ Output:
     - output/         Directory with:
       - report.json   Full JSON report with all extracted data
       - summary.txt   Human-readable summary of the crawl
+    - images/         Downloaded images (when --download-assets or --download-images)
 
   Web UI / Project Mode:
     - scraped-data/<project-name>/<page-name>/
       - screenshot.png    Full-page screenshot
       - data.json         Page data and extracted content
+      - images/           Downloaded images (when enabled)
     - scraped-data/<project-name>/
       - report.json       Complete project report
       - summary.txt       Human-readable summary
@@ -152,6 +171,8 @@ Output:
 Features:
   - Full website crawling with internal link discovery
   - High-accuracy full-page screenshots
+  - Animation disabling for consistent screenshots
+  - Asset downloading (images, CSS, JS)
   - Text, images, links extraction
   - Structural element detection (header, nav, main, etc.)
   - JavaScript framework and library detection
