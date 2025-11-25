@@ -8,8 +8,9 @@
     "site-scraper": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/ui dist/",
     "start": "node dist/cli.js",
+    "start:ui": "node dist/cli.js --ui",
     "dev": "ts-node src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,7 +22,8 @@
     "screenshot",
     "website-documentation",
     "technology-detection",
-    "playwright"
+    "playwright",
+    "web-ui"
   ],
   "author": "",
   "license": "ISC",

@@ -10,6 +10,17 @@ export {
   extractTextContent,
   extractMetadata,
 } from './extractor';
+export {
+  createProject,
+  getAllProjects,
+  getProject,
+  updateProject,
+  deleteProject,
+  runProject,
+  loadProjects,
+  setProgressCallback,
+} from './project-manager';
+export { startServer } from './server';
 
 // Type exports
 export type {
@@ -20,4 +31,7 @@ export type {
   TechnologyInfo,
   PageData,
   SiteReport,
+  ProjectConfig,
+  Project,
+  ProjectStatus,
 } from './types';
