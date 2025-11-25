@@ -4,6 +4,7 @@ import * as path from 'path';
 import type { ClonerConfig, CloneResult, ClonedAsset } from './types';
 
 const CLONED_SITES_DIR = './cloned-sites';
+const MAX_HOSTNAME_LENGTH = 50;
 
 /**
  * Default configuration values for the cloner
@@ -23,9 +24,12 @@ export class SiteCloner {
   private browser: Browser | null = null;
   private assets: ClonedAsset[] = [];
   private errors: string[] = [];
+  private assetCounter = 0;
+  private baseHostname: string;
 
   constructor(config: ClonerConfig) {
-    const hostname = this.getHostname(config.url);
+    this.baseHostname = this.extractHostname(config.url);
+    const hostname = this.getSafeHostname(config.url);
     this.config = {
       ...DEFAULT_CONFIG,
       ...config,
@@ -34,15 +38,69 @@ export class SiteCloner {
   }
 
   /**
-   * Extract hostname from URL for folder naming
+   * Extract raw hostname from URL
    */
-  private getHostname(url: string): string {
+  private extractHostname(url: string): string {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Get a safe hostname for folder naming with length limit
+   */
+  private getSafeHostname(url: string): string {
     try {
       const parsed = new URL(url);
-      return parsed.hostname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      let hostname = parsed.hostname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      // Truncate if too long
+      if (hostname.length > MAX_HOSTNAME_LENGTH) {
+        hostname = hostname.substring(0, MAX_HOSTNAME_LENGTH);
+      }
+      // Ensure it doesn't end with a dot or underscore
+      hostname = hostname.replace(/[._]+$/, '');
+      return hostname || 'unknown-site';
     } catch {
       return 'unknown-site';
     }
+  }
+
+  /**
+   * Generate a unique asset ID for filename collision prevention
+   */
+  private getUniqueAssetId(): number {
+    return ++this.assetCounter;
+  }
+
+  /**
+   * Validate that a URL is from the same domain (SSRF prevention)
+   */
+  private isAllowedUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      // Only allow http and https protocols
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return false;
+      }
+      // Allow same domain or subdomains
+      const urlHostname = parsed.hostname;
+      return urlHostname === this.baseHostname || 
+             urlHostname.endsWith('.' + this.baseHostname);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Validate that a file path is within the output directory (directory traversal prevention)
+   */
+  private isPathWithinOutputDir(filePath: string): boolean {
+    const resolvedPath = path.resolve(filePath);
+    const resolvedOutputDir = path.resolve(this.config.outputDir);
+    return resolvedPath.startsWith(resolvedOutputDir + path.sep) || 
+           resolvedPath === resolvedOutputDir;
   }
 
   /**
@@ -85,29 +143,55 @@ export class SiteCloner {
   }
 
   /**
-   * Generate a safe filename from a URL
+   * Generate a safe filename from a URL with unique ID
    */
-  private getSafeFilename(url: string, defaultName: string): string {
+  private getSafeFilename(url: string, defaultExt: string): string {
+    const uniqueId = this.getUniqueAssetId();
     try {
       const parsed = new URL(url);
       let filename = path.basename(parsed.pathname);
       if (!filename || filename === '/') {
-        filename = defaultName;
+        return `asset_${uniqueId}${defaultExt}`;
       }
       // Remove query parameters from filename
       filename = filename.split('?')[0];
-      // Sanitize filename
+      // Sanitize filename - only allow alphanumeric, dots, underscores, hyphens
       filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-      return filename || defaultName;
+      // Ensure filename is not empty after sanitization
+      if (!filename) {
+        return `asset_${uniqueId}${defaultExt}`;
+      }
+      // Add unique ID to prevent collisions
+      const ext = path.extname(filename);
+      const base = path.basename(filename, ext);
+      return `${base}_${uniqueId}${ext || defaultExt}`;
     } catch {
-      return defaultName;
+      return `asset_${uniqueId}${defaultExt}`;
     }
   }
 
   /**
-   * Download a file from URL using fetch
+   * Safely write a file after validating the path
+   */
+  private safeWriteFile(filePath: string, content: Buffer | string): boolean {
+    if (!this.isPathWithinOutputDir(filePath)) {
+      this.errors.push(`Blocked write to path outside output directory: ${filePath}`);
+      return false;
+    }
+    fs.writeFileSync(filePath, content);
+    return true;
+  }
+
+  /**
+   * Download a file from URL using fetch (with SSRF protection)
    */
   private async downloadFile(page: Page, url: string): Promise<Buffer | null> {
+    // Validate URL is from allowed domain
+    if (!this.isAllowedUrl(url)) {
+      this.errors.push(`Blocked download from non-allowed URL: ${url}`);
+      return null;
+    }
+
     try {
       const response = await page.evaluate(async (fileUrl) => {
         try {
@@ -144,12 +228,11 @@ export class SiteCloner {
     for (const cssUrl of cssUrls) {
       try {
         const absoluteUrl = new URL(cssUrl, this.config.url).href;
-        const filename = this.getSafeFilename(absoluteUrl, `style_${Date.now()}.css`);
+        const filename = this.getSafeFilename(absoluteUrl, '.css');
         const localPath = path.join(this.config.outputDir, 'assets', 'css', filename);
 
         const content = await this.downloadFile(page, absoluteUrl);
-        if (content) {
-          fs.writeFileSync(localPath, content);
+        if (content && this.safeWriteFile(localPath, content)) {
           this.assets.push({
             originalUrl: absoluteUrl,
             localPath,
@@ -179,12 +262,11 @@ export class SiteCloner {
     for (const jsUrl of jsUrls) {
       try {
         const absoluteUrl = new URL(jsUrl, this.config.url).href;
-        const filename = this.getSafeFilename(absoluteUrl, `script_${Date.now()}.js`);
+        const filename = this.getSafeFilename(absoluteUrl, '.js');
         const localPath = path.join(this.config.outputDir, 'assets', 'js', filename);
 
         const content = await this.downloadFile(page, absoluteUrl);
-        if (content) {
-          fs.writeFileSync(localPath, content);
+        if (content && this.safeWriteFile(localPath, content)) {
           this.assets.push({
             originalUrl: absoluteUrl,
             localPath,
@@ -229,12 +311,11 @@ export class SiteCloner {
         if (imageUrl.startsWith('data:')) continue;
 
         const absoluteUrl = new URL(imageUrl, this.config.url).href;
-        const filename = this.getSafeFilename(absoluteUrl, `image_${Date.now()}.png`);
+        const filename = this.getSafeFilename(absoluteUrl, '.png');
         const localPath = path.join(this.config.outputDir, 'assets', 'images', filename);
 
         const content = await this.downloadFile(page, absoluteUrl);
-        if (content) {
-          fs.writeFileSync(localPath, content);
+        if (content && this.safeWriteFile(localPath, content)) {
           this.assets.push({
             originalUrl: absoluteUrl,
             localPath,
@@ -273,7 +354,9 @@ export class SiteCloner {
     }
 
     const htmlPath = path.join(this.config.outputDir, 'index.html');
-    fs.writeFileSync(htmlPath, html, 'utf-8');
+    if (!this.safeWriteFile(htmlPath, html)) {
+      throw new Error('Failed to write HTML file - path outside output directory');
+    }
 
     // Add HTML to assets
     this.assets.push({
@@ -360,7 +443,7 @@ export class SiteCloner {
 
       // Save clone report
       const reportPath = path.join(this.config.outputDir, 'clone-report.json');
-      fs.writeFileSync(reportPath, JSON.stringify(result, null, 2));
+      this.safeWriteFile(reportPath, JSON.stringify(result, null, 2));
 
       console.log('---');
       console.log('Clone complete!');

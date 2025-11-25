@@ -3,6 +3,7 @@ import { chromium, type Browser, type Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
+import * as os from 'os';
 import type { ClonerConfig, CloneResult, ClonedAsset } from '../src/types';
 import { SiteCloner, cloneSite } from '../src/cloner';
 
@@ -82,7 +83,7 @@ describe('Cloner Types', () => {
 describe('SiteCloner', () => {
   let server: http.Server;
   let serverPort: number;
-  const testOutputDir = '/tmp/cloner-test-output';
+  const testOutputDir = path.join(os.tmpdir(), 'cloner-test-output');
 
   beforeAll(async () => {
     // Create a simple test server
