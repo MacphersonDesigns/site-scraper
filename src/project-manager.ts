@@ -198,10 +198,14 @@ export async function runProject(id: string): Promise<SiteReport | undefined> {
   const project = projectsStore.get(id);
   if (!project) return undefined;
 
+  // Record start time
+  const runStartTime = new Date();
+
   // Update status
   project.status = 'running';
   project.progress = 0;
   project.error = undefined;
+  project.lastRun = runStartTime.toISOString();
   projectsStore.set(id, project);
   saveProjects();
 
@@ -322,16 +326,15 @@ export async function runProject(id: string): Promise<SiteReport | undefined> {
 
     // Create final report
     const endTime = new Date();
-    const startTime = project.lastRun ? new Date(project.lastRun) : endTime;
     const report: SiteReport = {
       baseUrl: project.urls[0],
       totalPages: allPages.length,
       pages: allPages,
       technologies: aggregateTechnologies(allPages),
       siteStructure: buildSiteStructure(allPages),
-      startTime: startTime.toISOString(),
+      startTime: runStartTime.toISOString(),
       endTime: endTime.toISOString(),
-      duration: (endTime.getTime() - startTime.getTime()) / 1000,
+      duration: (endTime.getTime() - runStartTime.getTime()) / 1000,
     };
 
     // Save report
