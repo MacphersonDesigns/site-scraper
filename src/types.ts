@@ -135,3 +135,52 @@ export interface SiteReport {
   /** Total duration in seconds */
   duration: number;
 }
+
+/**
+ * Project status values
+ */
+export type ProjectStatus = 'idle' | 'running' | 'completed' | 'failed';
+
+/**
+ * Configuration for a scraping project
+ */
+export interface ProjectConfig {
+  /** Unique project identifier */
+  id: string;
+  /** Human-readable project name */
+  name: string;
+  /** URLs to scrape */
+  urls: string[];
+  /** Maximum pages to crawl per URL (0 for unlimited) */
+  maxPages?: number;
+  /** Request delay in milliseconds */
+  delay?: number;
+  /** Whether to capture full page screenshots */
+  fullPageScreenshots?: boolean;
+  /** Viewport width for screenshots */
+  viewportWidth?: number;
+  /** Viewport height for screenshots */
+  viewportHeight?: number;
+  /** Scheduling cron expression (optional) */
+  schedule?: string;
+  /** Date when project was created */
+  createdAt: string;
+  /** Date when project was last updated */
+  updatedAt: string;
+}
+
+/**
+ * Project status and metadata
+ */
+export interface Project extends ProjectConfig {
+  /** Current status of the project */
+  status: ProjectStatus;
+  /** Progress percentage (0-100) */
+  progress: number;
+  /** Error message if status is 'failed' */
+  error?: string;
+  /** Last run timestamp */
+  lastRun?: string;
+  /** Report from last completed run */
+  lastReport?: SiteReport;
+}

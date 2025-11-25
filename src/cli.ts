@@ -1,16 +1,8 @@
 #!/usr/bin/env node
 
 import { crawlSite } from './crawler';
+import { startServer } from './server';
 import type { ScraperConfig } from './types';
-
-/**
- * Parse command line arguments
- */
-function parseArgs(args: string[]): ScraperConfig {
-  const config: Partial<ScraperConfig> = {};
-
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
 
 /**
  * Get the next argument value, with bounds checking
@@ -23,12 +15,28 @@ function getNextArg(args: string[], index: number, flag: string): string {
   return args[index + 1];
 }
 
+/**
+ * Parse command line arguments
+ */
+function parseArgs(args: string[]): { config: ScraperConfig | null; launchUi: boolean; port: number } {
+  const config: Partial<ScraperConfig> = {};
+  let launchUi = false;
+  let port = 3000;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
     if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
     }
 
-    if (arg === '--url' || arg === '-u') {
+    if (arg === '--ui') {
+      launchUi = true;
+    } else if (arg === '--port' || arg === '-p') {
+      port = parseInt(getNextArg(args, i, arg), 10);
+      i++;
+    } else if (arg === '--url' || arg === '-u') {
       config.baseUrl = getNextArg(args, i, arg);
       i++;
     } else if (arg === '--max-pages' || arg === '-m') {
@@ -60,9 +68,15 @@ function getNextArg(args: string[], index: number, flag: string): string {
     }
   }
 
+  // If launching UI, don't require URL
+  if (launchUi) {
+    return { config: null, launchUi: true, port };
+  }
+
   if (!config.baseUrl) {
     console.error('Error: URL is required');
     console.error('Usage: site-scraper <url> [options]');
+    console.error('       site-scraper --ui [--port <port>]');
     console.error('Run with --help for more information');
     process.exit(1);
   }
@@ -75,7 +89,7 @@ function getNextArg(args: string[], index: number, flag: string): string {
     process.exit(1);
   }
 
-  return config as ScraperConfig;
+  return { config: config as ScraperConfig, launchUi: false, port };
 }
 
 /**
@@ -86,13 +100,16 @@ function printHelp(): void {
 Site Scraper - A comprehensive website crawling and documentation tool
 
 Usage:
-  site-scraper <url> [options]
+  site-scraper <url> [options]      Scrape a website from the command line
+  site-scraper --ui [--port <port>] Launch the web UI
 
 Arguments:
   url                    The base URL to start crawling from
 
 Options:
   -h, --help             Show this help message
+  --ui                   Launch the web-based user interface
+  -p, --port <port>      Port for the web UI server (default: 3000)
   -u, --url <url>        Base URL to crawl (alternative to positional argument)
   -m, --max-pages <n>    Maximum number of pages to crawl (default: 50, 0 for unlimited)
   -s, --screenshots <dir> Directory to save screenshots (default: ./screenshots)
@@ -107,13 +124,30 @@ Examples:
   site-scraper https://example.com
   site-scraper https://example.com --max-pages 100 --output ./docs
   site-scraper -u https://example.com -m 20 -d 500
+  site-scraper --ui                          # Launch web UI on port 3000
+  site-scraper --ui --port 8080              # Launch web UI on port 8080
+
+Web UI:
+  The web UI provides a modern interface for:
+  - Creating and managing scraping projects
+  - Configuring URLs, scheduling, and options
+  - Monitoring scraping progress in real-time
+  - Viewing results and screenshots
 
 Output:
-  The scraper creates:
-  - screenshots/    Directory with PNG screenshots of each page
-  - output/         Directory with:
-    - report.json   Full JSON report with all extracted data
-    - summary.txt   Human-readable summary of the crawl
+  CLI Mode:
+    - screenshots/    Directory with PNG screenshots of each page
+    - output/         Directory with:
+      - report.json   Full JSON report with all extracted data
+      - summary.txt   Human-readable summary of the crawl
+
+  Web UI / Project Mode:
+    - scraped-data/<project-name>/<page-name>/
+      - screenshot.png    Full-page screenshot
+      - data.json         Page data and extracted content
+    - scraped-data/<project-name>/
+      - report.json       Complete project report
+      - summary.txt       Human-readable summary
 
 Features:
   - Full website crawling with internal link discovery
@@ -133,10 +167,17 @@ async function main(): Promise<void> {
 
   if (args.length === 0) {
     printHelp();
+    console.log('\n💡 TIP: Use --ui to launch the web-based interface for easier project management.\n');
     process.exit(0);
   }
 
-  const config = parseArgs(args);
+  const { config, launchUi, port } = parseArgs(args);
+
+  if (launchUi) {
+    // Launch web UI
+    startServer(port);
+    return;
+  }
 
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
@@ -145,8 +186,10 @@ async function main(): Promise<void> {
 ╚═══════════════════════════════════════════════════════════╝
 `);
 
+  console.log('💡 TIP: Use --ui to launch the web-based interface for easier project management.\n');
+
   try {
-    const report = await crawlSite(config);
+    const report = await crawlSite(config!);
 
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗

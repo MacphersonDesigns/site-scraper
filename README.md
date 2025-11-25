@@ -21,10 +21,16 @@ A comprehensive website crawling and documentation tool that captures high-accur
   - Build tools (Webpack, Vite)
   - State management (Redux)
   - And more...
+- **Web-Based UI** - Modern interface for:
+  - Creating and managing scraping projects
+  - Configuring URLs, scheduling, and options
+  - Monitoring scraping progress in real-time
+  - Viewing results and screenshots
 - **Organized Output** - Generates:
   - JSON report with complete structured data
   - Human-readable text summary
   - Organized screenshots directory
+  - Project-based folder structure
 
 ## Installation
 
@@ -45,6 +51,39 @@ npm run build
 
 ## Usage
 
+### Web UI (Recommended)
+
+Launch the web-based user interface for an easy-to-use project management experience:
+
+```bash
+# Launch web UI on default port (3000)
+node dist/cli.js --ui
+
+# Launch on custom port
+node dist/cli.js --ui --port 8080
+```
+
+Then open http://localhost:3000 in your browser.
+
+The Web UI allows you to:
+- Create and manage multiple scraping projects
+- Configure project settings (URLs, max pages, delay, viewport size)
+- Run scraping jobs with real-time progress updates
+- View detailed results including detected technologies
+- Access screenshots and extracted data
+
+**Output Structure (Web UI / Project Mode):**
+```
+scraped-data/
+├── projects.json              # Project configurations
+└── <project-name>/
+    ├── report.json            # Complete project report
+    ├── summary.txt            # Human-readable summary
+    └── <page-name>/
+        ├── screenshot.png     # Full-page screenshot
+        └── data.json          # Page data and content
+```
+
 ### Command Line
 
 ```bash
@@ -62,6 +101,8 @@ node dist/cli.js <url> [options]
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
+| `--ui` | | Launch the web-based user interface | |
+| `--port` | `-p` | Port for the web UI server | 3000 |
 | `--url` | `-u` | Base URL to crawl | (required) |
 | `--max-pages` | `-m` | Maximum pages to crawl (0 = unlimited) | 50 |
 | `--screenshots` | `-s` | Screenshot output directory | ./screenshots |
@@ -99,11 +140,22 @@ const crawler = new SiteCrawler({
 });
 
 const report = await crawler.crawl();
+
+// Project-based usage (used by Web UI)
+import { createProject, runProject, getAllProjects } from 'site-scraper';
+
+const project = createProject({
+  name: 'My Website',
+  urls: ['https://example.com'],
+  maxPages: 50,
+});
+
+await runProject(project.id);
 ```
 
 ## Output Structure
 
-### JSON Report (`output/report.json`)
+### CLI Mode (`output/report.json`)
 
 ```json
 {

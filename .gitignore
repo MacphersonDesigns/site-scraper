@@ -7,6 +7,7 @@ dist/
 # Scraper output (default directories)
 screenshots/
 output/
+scraped-data/
 
 # IDE
 .vscode/
