@@ -8,6 +8,7 @@ dist/
 screenshots/
 output/
 scraped-data/
+cloned-sites/
 
 # IDE
 .vscode/

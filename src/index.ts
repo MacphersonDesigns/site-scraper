@@ -1,5 +1,6 @@
 // Main exports
 export { SiteCrawler, crawlSite } from './crawler';
+export { SiteCloner, cloneSite } from './cloner';
 export { detectTechnologies } from './tech-detector';
 export {
   extractPageData,
@@ -34,4 +35,7 @@ export type {
   ProjectConfig,
   Project,
   ProjectStatus,
+  ClonerConfig,
+  ClonedAsset,
+  CloneResult,
 } from './types';
